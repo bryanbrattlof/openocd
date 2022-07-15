@@ -105,6 +105,9 @@ static int dmem_dap_retval = ERROR_OK;
 /* Default dmem device. */
 #define DMEM_DEV_PATH_DEFAULT	"/dev/mem"
 static char *dmem_dev_path;
+static uint64_t dmem_dap_base_address;
+static uint8_t dmem_dap_max_aps = 1;
+static uint32_t dmem_dap_ap_offset = 0x100;
 
 static int dmem_dev_read(int chan, int addr, uint64_t *value)
 {
@@ -455,13 +458,84 @@ COMMAND_HANDLER(dmem_dap_device_command)
 	return ERROR_OK;
 }
 
+COMMAND_HANDLER(dmem_dap_base_address_command)
+{
+	if (CMD_ARGC != 1) {
+		command_print(CMD, "Too many arguments");
+		return ERROR_COMMAND_SYNTAX_ERROR;
+	}
+	COMMAND_PARSE_NUMBER(u64, CMD_ARGV[0], dmem_dap_base_address);
+	return ERROR_OK;
+}
+
+COMMAND_HANDLER(dmem_dap_max_aps_command)
+{
+	if (CMD_ARGC != 1) {
+		command_print(CMD, "Too many arguments");
+		return ERROR_COMMAND_SYNTAX_ERROR;
+	}
+	COMMAND_PARSE_NUMBER(u8, CMD_ARGV[0], dmem_dap_max_aps);
+	return ERROR_OK;
+}
+
+COMMAND_HANDLER(dmem_dap_ap_offset_command)
+{
+	if (CMD_ARGC != 1) {
+		command_print(CMD, "Too many arguments");
+		return ERROR_COMMAND_SYNTAX_ERROR;
+	}
+	COMMAND_PARSE_NUMBER(u32, CMD_ARGV[0], dmem_dap_ap_offset);
+	return ERROR_OK;
+}
+COMMAND_HANDLER(dmem_dap_config_info_command)
+{
+	if (CMD_ARGC != 0) {
+		command_print(CMD, "Too many arguments");
+		return ERROR_COMMAND_SYNTAX_ERROR;
+	}
+	command_print(CMD,"dmem (Direct Memory) AP Adapter Configuration:");
+	command_print(CMD," Device       : %s", dmem_dev_path ? dmem_dev_path : DMEM_DEV_PATH_DEFAULT);
+	command_print(CMD," Base Address : 0x%lx", dmem_dap_base_address);
+	command_print(CMD," Max APs      : %d", dmem_dap_max_aps);
+	command_print(CMD," AP offset    : 0x%08x", dmem_dap_ap_offset);
+	return ERROR_OK;
+}
+
 static const struct command_registration dmem_dap_subcommand_handlers[] = {
 	{
 		.name = "device",
 		.handler = dmem_dap_device_command,
 		.mode = COMMAND_CONFIG,
-		.help = "set the dmem device",
+		.help = "set the dmem memory access device",
 		.usage = "</dev/mem>",
+	},
+	{
+		.name = "base_address",
+		.handler = dmem_dap_base_address_command,
+		.mode = COMMAND_CONFIG,
+		.help = "set the dmem dap AP memory map base address",
+		.usage = "<0x700000000>",
+	},
+	{
+		.name = "max_aps",
+		.handler = dmem_dap_max_aps_command,
+		.mode = COMMAND_CONFIG,
+		.help = "set the maximum number of APs this will support",
+		.usage = "<1>",
+	},
+	{
+		.name = "ap_address_offset",
+		.handler = dmem_dap_ap_offset_command,
+		.mode = COMMAND_CONFIG,
+		.help = "set the offsets of each ap index",
+		.usage = "<0x100>",
+	},
+	{
+		.name = "info",
+		.handler = dmem_dap_config_info_command,
+		.mode = COMMAND_ANY,
+		.help = "print the config info",
+		.usage = "",
 	},
 	COMMAND_REGISTRATION_DONE
 };
@@ -470,7 +544,7 @@ static const struct command_registration dmem_dap_command_handlers[] = {
 	{
 		.name = "dmem",
 		.mode = COMMAND_ANY,
-		.help = "perform dmem management",
+		.help = "Perform dmem (Direct Memory) DAP management and configuration",
 		.chain = dmem_dap_subcommand_handlers,
 		.usage = "",
 	},
